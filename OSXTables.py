@@ -37,9 +37,30 @@ from Quartz.CoreGraphics import (CGWindowListCreate,
                                  kCGWindowBounds, kCGWindowName,CGWindowListCopyWindowInfo,kCGNullWindowID,
                                  kCGWindowNumber,kCGWindowListExcludeDesktopElements,kCGWindowListOptionOnScreenOnly)
 
+from AppKit import NSWorkspaceDidActivateApplicationNotification
+from PyQt5.QtCore import QObject, pyqtSlot
+from PyQt5.QtCore import Qt
 #    FPDB modules
 from TableWindow import Table_Window
 
+from Foundation import NSObject
+from PyObjCTools import AppHelper
+
+class TableActivationObserver(NSObject):
+    def __init__(self, table):
+        self.table = table
+        super(TableActivationObserver, self).__init__()
+
+    def applicationDidActivate_(self, notification):
+        AppHelper.callAfter(self.check_active_app)
+
+    def check_active_app(self):
+        active_app = NSWorkspace.sharedWorkspace().activeApplication()
+        if self.table.get_window_title() == active_app['NSApplicationName']:
+            self.table.on_activate()
+        else:
+            self.table.on_deactivate()
+            
 class Table(Table_Window):
 
     def find_table_parameters(self):
@@ -109,3 +130,33 @@ class Table(Table_Window):
         view = NSView(c_void_p=cvp)
         if window.isVisible():
             view.window().orderWindow_relativeTo_(NSWindowAbove, self.number)
+        window.windowHandle().setFlags(Qt.Window | Qt.FramelessWindowHint)
+        
+    def raise_hud_windows(self):
+        if self.hud:
+            for window in self.hud.windows:
+                window.raise_()
+
+    def setup_activation_monitoring(self):
+        self.activation_observer = TableActivationObserver.alloc().init()
+        self.activation_observer.table = self
+        nc = NSWorkspace.sharedWorkspace().notificationCenter()
+        nc.addObserver_selector_name_object_(
+            self.activation_observer,
+            'applicationDidActivate:',
+            NSWorkspaceDidActivateApplicationNotification,
+            None
+        )
+
+    def on_activate(self):
+        if self.hud:
+            for window in self.hud.windows:
+                window.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+                window.show()  # Nécessaire pour que les changements de flags prennent effet
+        self.raise_hud_windows()
+
+    def on_deactivate(self):
+        if self.hud:
+            for window in self.hud.windows:
+                window.setWindowFlag(Qt.WindowStaysOnTopHint, False)
+                window.show()

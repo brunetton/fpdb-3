@@ -105,8 +105,7 @@ class Aux_Window(object):
 
 class Seat_Window(QWidget):
     def __init__(self, aw=None, seat=None):
-        super(Seat_Window, self).__init__(None, Qt.Window | Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus
-                                          | Qt.WindowStaysOnTopHint)  # FIXME acceptfocus?  splashscreen?
+        super(Seat_Window, self).__init__(None, Qt.Window | Qt.FramelessWindowHint)
         self.lastPos = None
         self.aw = aw
         self.seat = seat
@@ -164,6 +163,9 @@ class Aux_Seats(Aux_Window):
 
         self.aw_class_window = Seat_Window  # classname to be used by the aw_class_window
 
+
+    def get_hud_windows(self):
+        return list(self.m_windows.values())
 #    placeholders that should be overridden--so we don't throw errors
     def create_contents(self): pass
     def create_common(self, x, y): pass

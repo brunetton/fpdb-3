@@ -188,6 +188,10 @@ class HUD_main(QObject):
         [aw.update_data(new_hand_id, self.db_connection) for aw in self.hud_dict[temp_key].aux_windows]
         idle_create(self, new_hand_id, table, temp_key, max, poker_game, type, stat_dict, cards)
         log.debug(f"HUD for table {temp_key} created successfully.")
+        # Ajoutez ces lignes à la fin de la méthode
+        if hasattr(table, 'setup_activation_monitoring'):
+            table.setup_activation_monitoring()
+        log.debug(f"Activation monitoring set up for table {temp_key}")
 
     def update_HUD(self, new_hand_id, table_name, config):
         log.debug(f"Updating HUD for table {table_name} and hand {new_hand_id}")
