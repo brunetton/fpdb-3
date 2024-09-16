@@ -949,7 +949,8 @@ class Config(object):
                 file = None
 
         self.example_copy,example_file = True,None
-        if file is None: (file,self.example_copy,example_file) = get_config("HUD_config.xml", True)
+        if file is None: 
+            (file,self.example_copy,example_file) = get_config("HUD_config.xml", True)
 
         self.file = file
                     

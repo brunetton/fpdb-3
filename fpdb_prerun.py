@@ -1,70 +1,53 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#    Copyright 2011, Gimick (bbtgaf@googlemail.com)
-#This program is free software: you can redistribute it and/or modify
-#it under the terms of the GNU Affero General Public License as published by
-#the Free Software Foundation, version 3 of the License.
-#
-#This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-#GNU General Public License for more details.
-#
-#You should have received a copy of the GNU Affero General Public License
-#along with this program. If not, see <http://www.gnu.org/licenses/>.
-#In the "official" distribution you can find the license in agpl-3.0.txt.
-
-########################################################################
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 from __future__ import print_function
+import sys
+from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidget, QVBoxLayout, QWidget
 
 failure_list = []
 success_list = []
 verbose = False
 
-global_modules_to_test =   ["PyQt5",
-                            "matplotlib",
-                            "mplfinance",
-                            "numpy",
-                            
-                            "sqlite3",
-                            "pytz"]
-
-windows_modules_to_test =  ["win32gui",
-                            "win32api",
-                            "win32con",
-                            "win32process",
-                            "win32event",
-                            "win32console",
-                            "winpaths"]
-
+global_modules_to_test = ["PyQt5", "matplotlib", "mplfinance", "numpy", "sqlite3", "pytz"]
+windows_modules_to_test = ["win32gui", "win32api", "win32con", "win32process", "win32event", "win32console", "winpaths"]
 linux_modules_to_test = ["xcffib", "xcffib.xproto"]
 mac_modules_to_test = []
 posix_modules_to_test = []
 
-def win_output(message):
+def qt_output(message):
+    app = QApplication(sys.argv)
+    window = QMainWindow()
+    window.setWindowTitle("FPDB")
+    window.setGeometry(100, 100, 600, 400)
     
-    win = Tk()
-    win.title("FPDB")
-    win.geometry("600x400")
-    listbox  = Listbox(win)
+    central_widget = QWidget()
+    window.setCentralWidget(central_widget)
+    
+    layout = QVBoxLayout()
+    central_widget.setLayout(layout)
+    
+    listbox = QListWidget()
     for item in message:
-        listbox.insert(END,item)
-    listbox.pack(fill=BOTH, expand=YES)
-    win.mainloop()
+        listbox.addItem(item)
+    layout.addWidget(listbox)
+    
+    window.show()
+    sys.exit(app.exec_())
 
 def try_import(modulename):
-
     try:
         module = __import__(modulename)
         success(module)
     except:
-        failure( ('File not found')+ ": " +modulename)
-        if modulename in ["win32console"]:
-            failure (("We appear to be running in Windows, but the Windows Python Extensions are not loading. Please install the PYWIN32 package from http://sourceforge.net/projects/pywin32/"))
-        if modulename in ["pytz"]:
-            failure (("Unable to import PYTZ library. Please install PYTZ from http://pypi.python.org/pypi/pytz/"))
+        failure(f'File not found: {modulename}')
+        if modulename == "win32console":
+            failure("We appear to be running in Windows, but the Windows Python Extensions are not loading. Please install the PYWIN32 package from http://sourceforge.net/projects/pywin32/")
+        if modulename == "pytz":
+            failure("Unable to import PYTZ library. Please install PYTZ from http://pypi.python.org/pypi/pytz/")
         return False
 
     if modulename == "matplotlib":
@@ -81,156 +64,126 @@ def try_import(modulename):
 def success(message):
     if verbose:
         print(message)
-    success_list.append(message)
+    success_list.append(str(message))
 
 def failure(message):
     if verbose:
-        print(("Error:"), message)
+        print("Error:", message)
     failure_list.append(message)
 
-
-class ChooseLanguage(object):
-     
-    def __init__(self, win, language_dict):
-        win.title("Choose a language for FPDB")
-        win.geometry("350x350")
-        self.listbox  = Listbox(win)
+class ChooseLanguage(QMainWindow):
+    def __init__(self, language_dict):
+        super().__init__()
+        self.setWindowTitle("Choose a language for FPDB")
+        self.setGeometry(100, 100, 350, 350)
         
-        self.listbox.insert(END,("Use the system language settings"))
-        self.listbox.insert(END,("en -- Always use English for FPDB"))
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        layout = QVBoxLayout()
+        central_widget.setLayout(layout)
+        
+        self.listbox = QListWidget()
+        self.listbox.addItem("Use the system language settings")
+        self.listbox.addItem("en -- Always use English for FPDB")
         for key in sorted(language_dict.keys()):
-            self.listbox.insert(END,(key + " -- " + language_dict[key]))
-        self.listbox.pack(fill=BOTH, expand=1)
-        self.listbox.select_set(0)
+            self.listbox.addItem(f"{key} -- {language_dict[key]}")
+        layout.addWidget(self.listbox)
+        
+        self.listbox.setCurrentRow(0)
         self.selected_language = ""
         
-        self.listbox.bind('<Double-1>', self.callbackLanguage)
-        win.mainloop()
-        
-    def callbackLanguage(self, event):
-        index = self.listbox.curselection()[0]
-        if index == "0":
+        self.listbox.itemDoubleClicked.connect(self.callbackLanguage)
+
+    def callbackLanguage(self, item):
+        if self.listbox.currentRow() == 0:
             self.selected_language = ""
         else:
-            self.selected_language = self.listbox.get(index)
-        win.destroy()
-        
+            self.selected_language = item.text()
+        self.close()
+
     def getLanguage(self):
-        import string
-        return str.split(self.selected_language, " -- ", 1)[0]
+        return self.selected_language.split(" -- ", 1)[0]
 
-#=====================================================================
-
-#
-# check for gross failures first, no translation on the first
-#  two messages because L10n not guaranteed to be available
-#
-
-from tkinter import *
-
-try:
-    module = __import__("sys")
-except:
-    failure("python failure - could not import sys module")
-    win_output(failure_list)
-    sys.exit(1)
- 
-try:
-    module = __import__("L10n")
-except:
-    failure("fpdb modules cannot be loaded, check that fpdb is installed in an English path")
-    win_output(failure_list)
-    sys.exit(1)
-
-import sys
-try:
-    if sys.argv[1] == "-v":
-        verbose = True
-except:
-    pass
-
-#import L10n
-#_ = L10n.get_translation()
-import Configuration
-config = Configuration.Config()
-
-#
-# next, check for individual modules existing
-#
-
-for i in global_modules_to_test:
-    try_import(i)
-if config.os_family in ("XP", "Win7"):
-    for i in windows_modules_to_test:
-        try_import(i)
-elif config.os_family == "Linux":
-    for i in linux_modules_to_test:
-        try_import(i)
-elif config.os_family == "Mac":
-    for i in mac_modules_to_test:
-        try_import(i)
-if config.posix:
-    for i in posix_modules_to_test:
-        try_import(i) 
-
-if len(failure_list):
-    win_output(failure_list)
-
-#
-# finished validation, work out how to exit
-#
-if config.install_method == "exe":
-    if len(failure_list):
+if __name__ == "__main__":
+    try:
+        module = __import__("sys")
+    except:
+        failure("python failure - could not import sys module")
+        qt_output(failure_list)
         sys.exit(1)
- 
-if len(failure_list):
+    
+    try:
+        module = __import__("L10n")
+    except:
+        failure("fpdb modules cannot be loaded, check that fpdb is installed in an English path")
+        qt_output(failure_list)
+        sys.exit(1)
+
+    try:
+        if sys.argv[1] == "-v":
+            verbose = True
+    except:
+        pass
+
+    import Configuration
+    config = Configuration.Config()
+
+    for i in global_modules_to_test:
+        try_import(i)
     if config.os_family in ("XP", "Win7"):
-        sys.exit(1)
+        for i in windows_modules_to_test:
+            try_import(i)
+    elif config.os_family == "Linux":
+        for i in linux_modules_to_test:
+            try_import(i)
+    elif config.os_family == "Mac":
+        for i in mac_modules_to_test:
+            try_import(i)
+    if config.posix:
+        for i in posix_modules_to_test:
+            try_import(i) 
+
+    if len(failure_list):
+        qt_output(failure_list)
+
+    if config.install_method == "exe":
+        if len(failure_list):
+            sys.exit(1)
+    
+    if len(failure_list):
+        if config.os_family in ("XP", "Win7"):
+            sys.exit(1)
+        else:
+            sys.exit(failure_list)
+
+    if config.example_copy:
+        import L10n
+        language_dict, null = L10n.get_installed_translations()
+        app = QApplication(sys.argv)
+        chooser = ChooseLanguage(language_dict)
+        chooser.show()
+        app.exec_()
+        chosen_lang = chooser.getLanguage()
+
+        if chosen_lang:
+            conf = Configuration.Config()
+            conf.set_general(lang=chosen_lang)
+            conf.save()
+
+        initial_run = "-i"
     else:
-        sys.exit(failure_list)
+        initial_run = ""
 
-#
-# If initial run (example_copy==True), prompt for language
-#
-if config.example_copy:
-    #
-    # Ask user for their preferred language, save their choice in the
-    #  config
-    #
-    language_dict,null=L10n.get_installed_translations()
-    win = Tk()
-    chosen_lang = ChooseLanguage(win, language_dict).getLanguage()
+    if config.install_method == "exe":
+        if initial_run:
+            sys.exit(2)
+        else:
+            sys.exit(0)
 
-    if chosen_lang:
-        conf=Configuration.Config()
-        conf.set_general(lang=chosen_lang)
-        conf.save()
-
-    # signal fpdb.pyw to trigger the config created dialog
-    initial_run = "-i"
-else:
-    initial_run = ""
-
-if config.install_method == "exe":
-    if initial_run:
-        sys.exit(2)
+    import os
+    os.chdir(os.path.join(config.fpdb_root_path, ""))
+    if config.os_family in ("XP", "Win7"):
+        os.execvpe('pythonw.exe', list(('pythonw.exe', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)
     else:
-        sys.exit(0)
-
-#
-# finally, invoke fpdb
-#
-import os
-os.chdir(os.path.join(config.fpdb_root_path, "pyfpdb"))
-# print('config', config.fpdb_root_path)
-# print(os.path.join(config.fpdb_root_path, u"pyfpdb"))
-# print (config.os_family)
-if config.os_family in ("XP", "Win7"):
-    #print(sys.argv)
-    #print(os.environ)
-    os.execvpe('pythonw.exe', list(('pythonw.exe', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)
-else:
-    os.execvpe('python', list(('python', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)
-###################
-# DO NOT INSERT ANY LINES BELOW HERE
-# os.execvpe above transfers control to fpdb.pyw immediately
+        os.execvpe('python', list(('python', 'fpdb.pyw', initial_run, '-r'))+sys.argv[1:], os.environ)

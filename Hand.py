@@ -1898,170 +1898,59 @@ class Pot(object):
             return self.streettotals[street]
         return 0
 
+
     def end(self):
-        # Initialize
         print("Starting pot calculation...")
         print("Handling antes...")
-
-        ante_pot = 0
-        test = 0
-        max_ante = max(self.antes.values())  # max ante
-
-        for player, ante in self.antes.items():
-            # calculate reel ante that player can post
-            actual_ante = min(ante, self.common[player])
-            ante_pot += actual_ante
+        
+        # Handle antes
+        ante_pots = []
+        min_ante = min(self.antes.values()) if self.antes else Decimal(0)
+        max_ante = max(self.antes.values()) if self.antes else Decimal(0)
+        if max_ante > 0:
+            main_ante_pot = sum(min(ante, min_ante, self.common.get(player, Decimal(0))) for player, ante in self.antes.items())
+            ante_pots.append((main_ante_pot, set(self.antes.keys())))
             
-            if actual_ante < ante:
-                # Log if player can't post complet ante
-                print(f"Player {player} couldn't post full ante: posted {actual_ante} instead of {ante}")
-            
-            if actual_ante < max_ante:
-                # increase test id player's ante is lower to max ante
-                test += 1
+            # Create a pot for ante difference if necessary
+            ante_diff = sum(max(Decimal(0), min(self.antes[player], self.common.get(player, Decimal(0))) - min_ante) for player in self.antes)
+            if ante_diff > 0:
+                ante_pots.append((ante_diff, {player for player, ante in self.antes.items() if ante > min_ante and self.common.get(player, Decimal(0)) >= ante}))
+        
+        print(f"Ante pots: {ante_pots}")
 
-        print(f"Ante pot: {ante_pot}")
-        print(f"Number of players with ante less than max: {test}")
-        if (test == 0):
-            # calculate initial total pot
-            # Sum of bets placed, pool bets and secondary pot (stp)
-            self.total = sum(self.committed.values()) + sum(self.common.values()) + self.stp
+        # Calculate main pots (without antes)
+        self.total = sum(self.committed.values()) + sum(pot[0] for pot in ante_pots) + self.stp
+        # Include all players with committed bets
+        commitsall = sorted([(v, k) for (k, v) in self.committed.items() if v > 0])
 
-            # Return of uncalled bets to pool betting
-            if sum(self.common.values()) > 0 and sum(self.common.values()) == sum(self.antes.values()):
-                # Sort common bets in ascending order
-                common = sorted([(v, k) for (k, v) in self.common.items()])
-                try:
-                    # Calculates the difference between the highest pool bet and the next highest pool bet
-                    lastcommon = common[-1][0] - common[-2][0]
-                    if lastcommon > 0:
-                        # Return of uncalled bets to the player with the highest bet
-                        returntocommon = common[-1][1]
-                        self.total -= lastcommon
-                        self.common[returntocommon] -= lastcommon
-                except IndexError as e:
-                    log.error("Pot.end(): Major failure while calculating pot: %s", e)
-                    raise FpdbParseError("Error in pot calculation during common bets handling")
+        main_pots = []
+        while commitsall:
+            v1 = commitsall[0][0]
+            involved_players = set(k for (v, k) in commitsall)
+            pot_amount = sum(min(v, v1) for (v, k) in commitsall)
+            main_pots.append((pot_amount, involved_players))
+            commitsall = [(v - v1, k) for (v, k) in commitsall if v - v1 > 0]
 
-            # Management of uncalled bets
-            # Sorts bets in ascending order
-            committed = sorted([(v, k) for (k, v) in self.committed.items() if v > 0])
-            try:
-                # Calculates the difference between the highest bet and the next highest bet
-                lastbet = committed[-1][0] - committed[-2][0]
-                if lastbet > 0:
-                    # Return of uncalled bets to the player with the highest bet
-                    returnto = committed[-1][1]
-                    self.total -= lastbet
-                    self.committed[returnto] -= lastbet
-                    self.returned[returnto] = lastbet
-            except IndexError as e:
-                log.error("Pot.end(): Major failure while calculating pot: %s", e)
-                raise FpdbParseError("Error in pot calculation during committed bets handling")
+        # Combine ante pots with main pots
+        self.pots = ante_pots + main_pots
 
-            # Calculating secondary pots
-            commitsall = sorted([(v, k) for (k, v) in self.committed.items() if v > 0])
-            try:
-                while len(commitsall) > 0:
-                    # Filter players still in the running
-                    commitslive = [(v, k) for (v, k) in commitsall if k in self.contenders]
-                    v1 = commitslive[0][0]
-                    # Create a new secondary pot
-                    self.pots += [(sum([min(v, v1) for (v, k) in commitsall]), 
-                                set(k for (v, k) in commitsall if k in self.contenders))]
-                    # Updates the remaining bets
-                    commitsall = [((v - v1), k) for (v, k) in commitsall if v - v1 > 0]
-            except IndexError as e:
-                log.error("Pot.end(): Major failure while calculating pot: %s", e)
-                raise FpdbParseError("Error in pot calculation during side pots handling")
+        # Handle returned bets (uncalled portion)
+        self.returned = {}
+        for player in self.contenders:
+            committed = self.committed[player]
+            # Maximum bet among other active players
+            max_other_committed = max([self.committed[p] for p in self.contenders if p != player], default=Decimal(0))
+            uncalled = committed - max_other_committed
+            if uncalled > 0:
+                self.returned[player] = uncalled
+                self.total -= uncalled
 
-            # TODO: Gestion du rake (commission)
-            # Explication de la gestion du rake
-            # total pot x. main pot y, side pot z. | rake r
-            # et y+z+r = x
-            # Exemple:
-            # Total pot $124.30 Main pot $98.90. Side pot $23.40. | Rake $2
-        else:
-            # Initialize
-            print("Starting pot calculation...")
+        # Recalculate pots after handling returned bets
+        self.pots = [pot for pot in self.pots if pot[0] > 0]
 
-            # Ante management
-            print("Handling antes...")
-            ante_pot = 0
-            for player, ante in self.antes.items():
-                # Calculation of the real ante that the player can post
-                # We take the minimum between the ante requested and what the player has in his pool.
-                actual_ante = min(ante, self.common[player])
-                ante_pot += actual_ante
-
-                # Check if the player cannot post the full ante
-                if actual_ante < ante:
-                    # Log if the player cannot post the full ante
-                    print(f"Player {player} couldn't post full ante: posted {actual_ante} instead of {ante}")
-
-                # Update of common antes for this player
-                self.common[player] = actual_ante
-
-            # Display of the ante pot and common bets after antes
-            print(f"Ante pot: {ante_pot}")
-            print(f"Common bets after antes: {self.common}")
-
-            # Creation of main and secondary pots if the antes are not equal
-            if len(set(self.common.values())) > 1:
-                # Calculation of the main pot based on the minimum ante
-                min_ante = min(self.common.values())
-                main_pot = min_ante * len(self.common)
-                # Calculating the secondary pot with the rest
-                side_pot = ante_pot - main_pot
-
-                # Display of main and secondary pots created
-                print(f"Created main pot: {main_pot}")
-                print(f"Created side pot from uneven antes: {side_pot}")
-
-                # Adding pots to the list of pots
-                # The main pot includes all the players
-                self.pots.append((main_pot, set(self.common.keys())))
-                # The secondary pot only includes players who have bet more than the minimum.
-                self.pots.append((side_pot, set(player for player, value in self.common.items() if value > min_ante)))
-            else:
-                # If the reeds are equal, everything goes into one pot
-                self.pots.append((ante_pot, set(self.common.keys())))
-
-            # Blind management
-            print("Handling blinds...")
-            for player, blinds in self.committed.items():
-                if blinds > 0:
-                    # Return of blinds not posted to players
-                    self.returned[player] = blinds
-                    print(f"Returned {blinds} to {player} as blinds couldn't be posted")
-
-            # Calculating the total pot by adding up all the pots
-            self.total = sum(pot[0] for pot in self.pots)
-
-            # Display of final pot details
-            print(f"Total pot after antes and blinds: {self.total}")
-            print("Final pot breakdown:")
-            print(f"Total pot: {self.total}")
-            print(f"Main pot: {self.pots[0][0] if self.pots else 0}")
-            print(f"Side pots: {[pot[0] for pot in self.pots[1:]]}")
-            print(f"All pots: {self.pots}")
-            print(f"Returned bets: {self.returned}")
-
-            # Checking the calculated total
-            calculated_total = sum(pot[0] for pot in self.pots) + sum(self.returned.values())
-            if calculated_total != self.total:
-                # Warning if totals do not add up
-                print(f"WARNING: Calculated total ({calculated_total}) doesn't match self.total ({self.total})")
-
-            # TODO: Rake management 
-
-
-
-
-
-
-
-
+        print(f"Total pot: {self.total}")
+        print(f"Pots: {self.pots}")
+        print(f"Returned bets: {self.returned}")
 
 
     def __str__(self):

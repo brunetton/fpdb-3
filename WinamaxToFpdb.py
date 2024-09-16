@@ -81,13 +81,13 @@ class Winamax(HandHistoryConverter):
 
     # Static regexes
     # ***** End of hand R5-75443872-57 *****
-    re_Identify = re.compile(u'Winamax\sPoker\s\-\s(CashGame|Go\sFast|HOLD\-UP|ESCAPE|Tournament\s\")')
+    re_Identify = re.compile(r'Winamax\sPoker\s\-\s(CashGame|Go\sFast|HOLD\-UP|ESCAPE|Tournament\s\")')
     re_SplitHands = re.compile(r'\n\n')
 
   
     re_HandInfo = re.compile(u"""
             \s*Winamax\sPoker\s-\s
-            (?P<RING>(CashGame|Go\sFast\s"[^"]+"|HOLD\-UP\s"[^"]+"|ESCAPE\s"[^"]+"))?
+            (?P<RING>(CashGame|Go\sFast\s"[^"]+"|(HOLD\-UP|ESCAPE)\s"[^"]+"))?
             (?P<TOUR>Tournament\s
             (?P<TOURNAME>.+)?\s
             buyIn:\s(?P<BUYIN>(?P<BIAMT>[%(LS)s\d\,.]+)?(\s\+?\s|-)(?P<BIRAKE>[%(LS)s\d\,.]+)?\+?(?P<BOUNTY>[%(LS)s\d\.]+)?\s?(?P<TOUR_ISO>%(LEGAL_ISO)s)?|(?P<FREETICKET>[\sa-zA-Z]+))?\s
@@ -117,7 +117,7 @@ class Winamax(HandHistoryConverter):
     re_HUTP = re.compile(r'Hold\-up\sto\sPot:\stotal\s((%(LS)s)?(?P<AMOUNT>[.0-9]+)(%(LS)s)?)' % substitutions,
                          re.MULTILINE | re.VERBOSE)
     # 2010/09/21 03:10:51 UTC
-    re_DateTime = re.compile("""
+    re_DateTime = re.compile(r"""
             (?P<Y>[0-9]{4})/
             (?P<M>[0-9]+)/
             (?P<D>[0-9]+)\s
@@ -131,6 +131,8 @@ class Winamax(HandHistoryConverter):
     re_PlayerInfo = re.compile(
         u'Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.*)\s\((%(LS)s)?(?P<CASH>[.0-9]+)(%(LS)s)?(,\s(%(LS)s)?(?P<BOUNTY>[.0-9]+)(%(LS)s)?\sbounty)?\)' % substitutions)
     re_PlayerInfoSummary = re.compile(u'Seat\s(?P<SEAT>[0-9]+):\s(?P<PNAME>.+?)\s' % substitutions)
+
+
 
     def compilePlayerRegexs(self, hand):
         players = {player[1] for player in hand.players}
@@ -513,7 +515,7 @@ class Winamax(HandHistoryConverter):
         m = self.re_Action.finditer(streetsplit[0])
         for action in m:
             acts = action.groupdict()
-            print(f"DEBUG: acts: {acts}")
+            #print(f"DEBUG: acts: {acts}")
             if action.group('ATYPE') == ' folds':
                 hand.addFold(street, action.group('PNAME'))
             elif action.group('ATYPE') == ' checks':
@@ -543,8 +545,8 @@ class Winamax(HandHistoryConverter):
                 log.fatal(
                     f"DEBUG:Unimplemented readAction: '{action.group('PNAME')}' '{action.group('ATYPE')}'"
                 )
-            print(f"Processed {acts}")
-            print("committed=", hand.pot.committed)
+            #print(f"Processed {acts}")
+            #print("committed=", hand.pot.committed)
 
     def readShowdownActions(self, hand):
         for shows in self.re_ShowdownAction.finditer(hand.handText):

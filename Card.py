@@ -21,6 +21,8 @@ from past.utils import old_div
 
 import sys
 
+from collections import Counter
+
 # #import L10n
 # #_ = L10n.get_translation()
 
@@ -234,15 +236,44 @@ def twoStartCards(value1, suit1, value2, suit2):
         return 13 * (value1 - 2) + (value2 - 2) + 1
 
 
+
+
 def is_suited(cards):
-    # Check if all cards have the same suit
-    return all(card[1] == cards[0][1] for card in cards)
+    if len(cards) < 2:
+        return False
+    suits = [card[1] for card in cards]
+    suit_counts = Counter(suits)
+    max_suited = max(suit_counts.values())
+    
+    # Pour 2 cartes
+    if len(cards) == 2:
+        return len(set(suits)) == 1
+    
+    # Pour 3 ou 4 cartes
+    if len(cards) in [3, 4]:
+        return max_suited >= 2
+    
+    # Pour PLO 5 cartes
+    if len(cards) == 5:
+        return max_suited >= 3 and len(set(suits)) >= 2
+    
+    # Pour PLO 6 cartes
+    if len(cards) == 6:
+        return max_suited >= 3 and len(set(suits)) >= 3
+
+    return False
 
 
 def is_double_suited(cards):
-    # Check if there are exactly two unique suits
-    suits = {card[1] for card in cards}
-    return len(suits) == 2
+    if len(cards) not in [4, 5]:
+        return False
+    suits = [card[1] for card in cards]
+    suit_counts = {suit: suits.count(suit) for suit in set(suits)}
+    
+    if len(cards) == 4:
+        return len(suit_counts) == 2 and all(count == 2 for count in suit_counts.values())
+    elif len(cards) == 5:
+        return len(suit_counts) == 2 and (3 in suit_counts.values() and 2 in suit_counts.values())
 
 
 def is_rainbow(cards):
@@ -255,14 +286,17 @@ def fourStartCards(cards):
     if len(cards) != 4:
         return "Invalid input: You must provide exactly four cards."
 
-    if is_suited(cards):
-        return "Suited"
-    elif is_double_suited(cards):
+    suits = [card[1] for card in cards]
+    suit_counts = {suit: suits.count(suit) for suit in set(suits)}
+    
+    if len(suit_counts) == 2 and all(count == 2 for count in suit_counts.values()):
         return "Double Suited"
-    elif is_rainbow(cards):
+    elif len(suit_counts) == 4:
         return "Rainbow"
     else:
-        return "Neither Suited nor Rainbow"
+        return "Suited"
+    
+    
 def twoStartCardString(card):
     """ Function to convert an int representing 2 holdem hole cards (as created by twoStartCards)
         into a string like AQo """
@@ -324,6 +358,13 @@ encodeCardList = {'2h': 1, '3h': 2, '4h': 3, '5h': 4, '6h': 5, '7h': 6, '8h': 7,
 def encodeCard(cardString):
     """Take a card string (Ah) and convert it to the db card code (1)."""
     global encodeCardList
+    
+    if not isinstance(cardString, str) or len(cardString) != 2:
+        return 0
+    
+    # Convertir le rang en majuscule, mais garder la couleur en minuscule
+    cardString = cardString[0].upper() + cardString[1].lower()
+    
     return encodeCardList.get(cardString, 0)
 
 
@@ -580,7 +621,7 @@ def encodeRazzStartHand(cards):
     else:
         startHand = f"({cards[1][0]}{cards[0][0]}){cards[2][0]}"
         # print "DEBUG: startHand: %s" % startHand
-        encodeRazzList = {
+    encodeRazzList = {
             '(00)A': -13, '(00)2': -12, '(00)3': -11, '(00)4': -10, '(00)5': -9, '(00)6': -8, '(00)7': -7, '(00)8': -6,
             '(00)9': -5, '(00)T': -4,
             '(00)J': -3, '(00)Q': -2, '(00)K': -1,

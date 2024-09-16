@@ -20,7 +20,7 @@ import sys
 
 
 # Modify sys.path[0] to include the 'pyfpdb' directory
-sys.path[0] = sys.path[0] + os.sep + "pyfpdb"
+sys.path[0] = sys.path[0] + os.sep + ""
 print (sys.path[0])
 # Change the current working directory to the 'pyfpdb' subdir
 os.chdir(sys.path[0])

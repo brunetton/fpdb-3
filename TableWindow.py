@@ -90,7 +90,7 @@ bad_words = ('History for table:', 'HUD:', 'Chat:', 'FPDBHUD', 'Lobby')
 
 class Table_Window(object):
     def __init__(self, config, site, table_name = None, tournament = None, table_number = None):
-
+        print("Table.__init__ called")
         self.config = config
         self.site = site
         self.hud = None   # fill in later
@@ -132,7 +132,7 @@ class Table_Window(object):
             return None
 
         self.search_string = getTableTitleRe(self.config, self.site, self.type, **table_kwargs)
-        print("search string:", self.search_string)
+        print("Table_windows...search string:", self.search_string)
         # make a small delay otherwise Xtables.root.get_windows()
         #  returns empty for unknown reasons
         sleep(0.1)
