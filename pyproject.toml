@@ -1,0 +1,42 @@
+[project]
+name = "fpdb-3"
+version = "3.0.0-alpha2"
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "aiohttp==3.10.5",
+    "beautifulsoup4==4.12.3",
+    "chardet==5.2.0",
+    "fastapi==0.111.0",
+    "Flask==3.0.3",
+    "future==1.0.0",
+    "matplotlib==3.9.0",
+    "mplfinance==0.12.10b0",
+    "numpy==1.26.4",
+    "pandas==2.2.2",
+    "pydantic==2.7.4",
+    "PyQt5==5.15.6",
+    "pytest==8.3.2",
+    "pytz==2024.1",
+    "qt-material==2.14",
+    "SQLAlchemy==1.4.46",
+    "uvicorn==0.30.1",
+    "xlrd==2.0.1",
+
+    # Plateform-specific dependencies
+    ## Linux
+    "xcffib==1.5.0; sys_platform == 'linux'",
+    "python-appimage==1.2.7; sys_platform == 'linux'",
+    ## Win
+    "pywin32; sys_platform == 'win32'",
+    ## MacOS
+    "pyobjc==10.3.1; sys_platform == 'darwin'",
+]
+
+[project.optional-dependencies]
+database = [
+    "mysqlclient==2.2.4",
+    "psycopg2-binary==2.9.9",
+]
+dev = [
+    "pytest-cov"
+]
