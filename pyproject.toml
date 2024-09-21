@@ -21,21 +21,18 @@ dependencies = [
     "SQLAlchemy==1.4.46",
     "uvicorn==0.30.1",
     "xlrd==2.0.1",
+
+    # Plateform-specific dependencies
+    ## Linux
+    "xcffib==1.5.0; sys_platform == 'linux'",
+    "python-appimage==1.2.7; sys_platform == 'linux'",
+    ## Win
+    "pywin32; sys_platform == 'win32'",
+    ## MacOS
+    "pyobjc==10.3.1; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]
-windows = [
-    "pywin32==306",
-    "configparser",
-
-]
-linux = [
-    "xcffib==1.5.0",
-    "python-appimage==1.2.7",
-]
-macos = [
-    "pyobjc==10.3.1",
-]
 database = [
     "mysqlclient==2.2.4",
     "psycopg2-binary==2.9.9",
